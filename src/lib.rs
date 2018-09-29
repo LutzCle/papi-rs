@@ -18,7 +18,6 @@
 extern crate libc;
 extern crate papi_sys;
 
-mod config;
 pub mod error;
 pub mod sampler;
 
