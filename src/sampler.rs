@@ -27,7 +27,11 @@ use std::os::raw::{c_int,c_longlong};
 /// Sampler object to sample hardware events
 ///
 #[derive(Debug)]
-pub struct Sampler {
+pub struct ReadySampler {
+    event_codes: Vec<c_int>,
+}
+
+pub struct RunningSampler {
     event_codes: Vec<c_int>,
 }
 
@@ -35,7 +39,7 @@ pub struct Sampler {
 ///
 #[derive(Debug)]
 pub struct SamplerBuilder {
-    sampler: Sampler,
+    sampler: ReadySampler,
 }
 
 
@@ -47,11 +51,11 @@ pub struct Sample {
     values: Vec<c_longlong>,
 }
 
-impl Sampler {
+impl ReadySampler {
 
     /// Start sampling hardware events
     ///
-    pub fn start(&mut self) -> Result<()> {
+    pub fn start(mut self) -> Result<RunningSampler> {
 
         let len = self.event_codes.len() as c_int;
         check(unsafe { ffi::PAPI_start_counters(
@@ -59,8 +63,11 @@ impl Sampler {
                     len)
         })?;
 
-        Ok(())
+        Ok(RunningSampler{ event_codes: self.event_codes })
     }
+}
+
+impl RunningSampler {
 
     /// Stop sampling hardware events
     ///
@@ -83,13 +90,13 @@ impl SamplerBuilder {
 
     pub fn new(_papi: &Papi) -> Self {
 
-        Self{ sampler: Sampler{ event_codes: Vec::new() }}
+        Self{ sampler: ReadySampler{ event_codes: Vec::new() }}
 
     }
 
     /// Finalize the building of a new Sampler
     ///
-    pub fn build(self) -> Sampler {
+    pub fn build(self) -> ReadySampler {
 
         self.sampler
 
@@ -182,16 +189,17 @@ mod tests {
         assert!(event_added.is_ok());
 
         let builder = event_added.unwrap();
-        let mut sampler = builder.build();
-        assert!(sampler.start().is_ok());
-        let maybe_sample = sampler.stop();
+        let ready_sampler = builder.build();
+        let maybe_running = ready_sampler.start();
+        assert!(maybe_running.is_ok());
+        let maybe_sample = maybe_running.unwrap().stop();
         assert!(maybe_sample.is_ok());
 
         let sample = maybe_sample.unwrap();
         let mut buffer = String::new();
         write!(&mut buffer, "{}", &sample);
 
-        let all: Vec<_> = sample.into_iter().collect();
+        let _all: Vec<_> = sample.into_iter().collect();
 
     }
 }
