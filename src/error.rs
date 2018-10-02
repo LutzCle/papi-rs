@@ -15,89 +15,47 @@
  * limitations under the License.
  */
 
-use std;
-use std::fmt;
-use std::result;
-use std::os::raw;
+extern crate toml;
+
+use std::os::raw::c_int;
 use std::ffi::CStr;
 
 use super::ffi;
 
-pub type Result<T> = result::Result<T, Error>;
-
-pub fn check(code: raw::c_int) -> Result<()> {
+// pub type Result<T> = result::Result<T, Error>;
+//
+pub fn check(code: c_int) -> Result<()> {
 
     match code as u32 {
         ffi::PAPI_OK => Ok(()),
-        _ => Err(Error{ kind: ErrorKind::PapiError(code) }),
+        _ => Err(ErrorKind::PapiError(code).into()),
     }
 
 }
 
-#[derive(Debug, Clone)]
-pub enum ErrorKind {
-    PapiError(raw::c_int),
-    InitError(&'static str),
-    InvalidEvent(&'static str),
-}
-
-#[derive(Debug, Clone)]
-pub struct Error {
-    pub kind: ErrorKind,
-}
-
-impl ErrorKind {
-
-    fn error_str(&self) -> &str {
-        match self {
-            ErrorKind::PapiError(e) => {
-                let estr = unsafe {
-                    let str_ptr = ffi::PAPI_strerror(*e);
-                    CStr::from_ptr(str_ptr)
-                        .to_str()
-                        .expect("Couldn't convert error message into UTF8 string")
-                };
-                estr
-            },
-            ErrorKind::InitError(m) => m,
-            ErrorKind::InvalidEvent(m) => m,
+error_chain!{
+    errors {
+        PapiError(e: c_int) {
+            description("PAPI command failed")
+            display("PAPI command returned with: '{}'",
+                    {
+                        let estr = unsafe {
+                            let str_ptr = ffi::PAPI_strerror(*e);
+                            CStr::from_ptr(str_ptr)
+                                .to_str()
+                                .expect("Couldn't convert error message into UTF8 string")
+                        };
+                        estr
+                    })
+        }
+        InvalidEvent(e: &'static str) {
+            description("invalid event name")
+            display("invalid event name: '{}'", e)
         }
     }
-}
 
-impl Error {
-
-    pub fn new(kind: ErrorKind) -> Self {
-
-        Self { kind }
-
+    foreign_links {
+        Io(::std::io::Error);
+        TomlDe(toml::de::Error);
     }
-
-    pub fn init_error(msg: &'static str) -> Self {
-
-        Self { kind: ErrorKind::InitError(msg) }
-
-    }
-
-    pub fn invalid_event(msg: &'static str) -> Self {
-
-        Self { kind: ErrorKind::InvalidEvent(msg) }
-
-    }
-}
-
-impl fmt::Display for Error {
-
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.kind.error_str())
-    }
-
-}
-
-impl std::error::Error for Error {
-
-    fn description(&self) -> &str {
-        self.kind.error_str()
-    }
-
 }

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-use super::error::{check,Error,Result};
+use super::error::{check,ErrorKind,Result};
 use super::ffi;
 use super::Papi;
 
@@ -114,7 +114,8 @@ impl SamplerBuilder {
     pub fn add_event(mut self, name: &str) -> Result<Self> {
 
         let c_name = std::ffi::CString::new(name)
-            .or_else(|_| Err(Error::invalid_event("Invalid event name")))?;
+            // .or_else(|_| Err(Error::invalid_event("Invalid event name")))?;
+            .or_else(|_| Err(ErrorKind::InvalidEvent("Invalid event name")))?;
 
         // Get event code
         let mut code: c_int = 0;

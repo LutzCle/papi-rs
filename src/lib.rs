@@ -17,16 +17,37 @@
 
 extern crate libc;
 extern crate papi_sys;
+extern crate serde;
+extern crate toml;
 
+#[macro_use]
+extern crate error_chain;
+
+#[macro_use]
+extern crate serde_derive;
+
+pub mod config;
 pub mod error;
 pub mod sampler;
 
-use error::{Error, Result};
+use error::Result;
 
 use papi_sys as ffi;
 
+use std::fs;
+use std::path;
+use std::io::Read;
+use std::collections::BTreeMap;
+
 #[derive(Debug)]
-pub struct Papi;
+pub struct Papi {
+    config: Option<Config>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Config {
+    presets: Option<BTreeMap<String, Vec<String>>>,
+}
 
 /// PAPI library wrapper
 impl Papi {
@@ -43,15 +64,62 @@ impl Papi {
             ffi::PAPI_library_init(ffi::_papi_ver_current)
         } != ffi::_papi_ver_current
         {
-            return Err(Error::init_error("PAPI library version mismatch!"))
+            // return Err(Error::init_error("PAPI library version mismatch!"))
+            bail!("PAPI library version mismatch!");
         }
 
         if unsafe {
             ffi::PAPI_thread_init(Some(libc::pthread_self))
         } != ffi::PAPI_OK as i32 {
-            return Err(Error::init_error("Unable to initialize PAPI threads"))
+            // return Err(Error::init_error("Unable to initialize PAPI threads"))
+            bail!("Unable to initialize PAPI threads");
         }
 
-        Ok(Papi)
+        Ok(Papi{ config: None })
+    }
+
+    pub fn init_with_config(config: Config) -> Result<Self> {
+
+        let mut papi = Self::init()?;
+        papi.config = Some(config);
+        Ok(papi)
+    }
+}
+
+impl Config {
+
+    /// Load configuration file in TOML format
+    ///
+    pub fn from_path(config: &path::Path) -> Result<Self> {
+
+        let mut input = String::new();
+
+        fs::File::open(config).and_then(|mut f| {
+            f.read_to_string(&mut input)
+        })?;
+
+        Self::from_str(&input)
+
+    }
+
+    /// Load configuration from a string in TOML format
+    ///
+    ///     # extern crate papi;
+    ///     # use papi::Config;
+    ///     let config_str = r#"
+    ///     Test1 = ["UOPS_RETIRED:ALL", "UOPS_RETIRED:STALL_CYCLES"]
+    ///     Test2 = ["UOPS_EXECUTED:CORE", "UOPS_EXECUTED:STALL_CYCLES"]
+    ///     Test3 = ["UOPS_EXECUTED:THREAD"]
+    ///     "#;
+    ///
+    ///     let config = Config::from_str(&config_str);
+    ///     assert!(config.is_ok());
+    ///
+    pub fn from_str(config: &str) -> Result<Self> {
+
+        let deserialized: Self = toml::from_str(&config)?;
+
+        Ok(deserialized)
+
     }
 }
