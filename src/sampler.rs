@@ -38,7 +38,8 @@ pub struct RunningSampler {
 /// SamplerBuilder to build a Sampler with a list of events to monitor
 ///
 #[derive(Debug)]
-pub struct SamplerBuilder {
+pub struct SamplerBuilder<'p> {
+    papi: &'p Papi,
     sampler: ReadySampler,
 }
 
@@ -86,11 +87,11 @@ impl RunningSampler {
     }
 }
 
-impl SamplerBuilder {
+impl<'p> SamplerBuilder<'p> {
 
-    pub fn new(_papi: &Papi) -> Self {
+    pub fn new(papi: &'p Papi) -> Self {
 
-        Self{ sampler: ReadySampler{ event_codes: Vec::new() }}
+        Self{ papi, sampler: ReadySampler{ event_codes: Vec::new() }}
 
     }
 
@@ -128,6 +129,48 @@ impl SamplerBuilder {
 
         Ok(self)
 
+    }
+
+    /// Use a preset specified in a configuration file
+    ///
+    ///     # extern crate papi;
+    ///     # use papi::Papi;
+    ///     # use papi::Config;
+    ///     # use papi::sampler::SamplerBuilder;
+    ///     let config_str = r#"
+    ///     [presets]
+    ///     Test1 = ["UOPS_RETIRED:ALL", "UOPS_RETIRED:STALL_CYCLES"]
+    ///     Test2 = ["UOPS_EXECUTED:CORE", "UOPS_EXECUTED:STALL_CYCLES"]
+    ///     Test3 = ["UOPS_EXECUTED:THREAD"]
+    ///     "#;
+    ///
+    ///     let config = Config::from_str(&config_str).unwrap();
+    ///     let papi = Papi::init_with_config(config).unwrap();
+    ///     let builder = SamplerBuilder::new(&papi);
+    ///     assert!(builder.use_preset("Test1").is_ok());
+    ///
+    pub fn use_preset(mut self, name: &str) -> Result<Self> {
+
+        let maybe_config = match &self.papi.config {
+            Some(o) => &o.presets,
+            None => bail!("No configuration set"),
+        };
+
+        let maybe_val = match maybe_config {
+            Some(c) => c.get(name),
+            None => bail!("No presets configured"),
+        };
+
+        let preset = match maybe_val {
+            Some(v) => v,
+            None => bail!("Preset {} doesn't exist", name),
+        };
+
+        for p in preset {
+            self = self.add_event(&p)?;
+        }
+
+        Ok(self)
     }
 }
 

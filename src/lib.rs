@@ -106,6 +106,7 @@ impl Config {
     ///     # extern crate papi;
     ///     # use papi::Config;
     ///     let config_str = r#"
+    ///     [presets]
     ///     Test1 = ["UOPS_RETIRED:ALL", "UOPS_RETIRED:STALL_CYCLES"]
     ///     Test2 = ["UOPS_EXECUTED:CORE", "UOPS_EXECUTED:STALL_CYCLES"]
     ///     Test3 = ["UOPS_EXECUTED:THREAD"]
