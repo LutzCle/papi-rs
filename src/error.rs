@@ -15,8 +15,7 @@
  * limitations under the License.
  */
 
-extern crate toml;
-
+use error_chain::error_chain;
 use std::ffi::CStr;
 use std::os::raw::c_int;
 
@@ -36,15 +35,13 @@ error_chain! {
         PapiError(e: c_int) {
             description("PAPI command failed")
             display("PAPI command returned with: '{}'",
-                    {
-                        let estr = unsafe {
+                        unsafe {
                             let str_ptr = ffi::PAPI_strerror(*e);
                             CStr::from_ptr(str_ptr)
                                 .to_str()
                                 .expect("Couldn't convert error message into UTF8 string")
-                        };
-                        estr
-                    })
+                        }
+                    )
         }
         InvalidEvent(e: &'static str) {
             description("invalid event name")

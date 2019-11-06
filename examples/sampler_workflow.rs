@@ -1,5 +1,3 @@
-extern crate papi;
-
 fn main() {
     let papi = papi::Papi::init().unwrap();
     let sampler = papi::sampler::SamplerBuilder::new(&papi)

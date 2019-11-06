@@ -19,6 +19,7 @@ use super::error::{check, ErrorKind, Result};
 use super::ffi;
 use super::Papi;
 
+use error_chain::bail;
 use std;
 use std::fmt;
 use std::mem;
@@ -143,7 +144,7 @@ impl<'p> SamplerBuilder<'p> {
     ///     Test3 = ["UOPS_EXECUTED:THREAD"]
     ///     "#;
     ///
-    ///     let config = Config::from_str(&config_str).unwrap();
+    ///     let config = Config::parse_str(&config_str).unwrap();
     ///     let papi = Papi::init_with_config(config).unwrap();
     ///     let builder = SamplerBuilder::new(&papi);
     ///     assert!(builder.use_preset("Test1").is_ok());
@@ -185,7 +186,7 @@ impl fmt::Display for Sample {
                     check(ffi::PAPI_get_event_info(*code, &mut info)).unwrap_or_else(|e| {
                         eprintln!("Unable to get PAPI event info, failed with {:?}", e);
                     });
-                    mem::transmute(&info.symbol[..])
+                    &*(&info.symbol[..] as *const [i8] as *const [u8])
                 };
 
                 String::from_utf8_lossy(symbol)

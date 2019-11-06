@@ -15,24 +15,15 @@
  * limitations under the License.
  */
 
-extern crate libc;
-extern crate papi_sys;
-extern crate serde;
-extern crate toml;
-
-#[macro_use]
-extern crate error_chain;
-
-#[macro_use]
-extern crate serde_derive;
-
 pub mod error;
 pub mod sampler;
 
-use error::Result;
+use crate::error::Result;
 
 use papi_sys as ffi;
 
+use error_chain::bail;
+use serde_derive::Deserialize;
 use std::collections::BTreeMap;
 use std::fs;
 use std::io::Read;
@@ -80,12 +71,12 @@ impl Papi {
 impl Config {
     /// Load configuration file in TOML format
     ///
-    pub fn from_path(config: &path::Path) -> Result<Self> {
+    pub fn parse_file(config: &path::Path) -> Result<Self> {
         let mut input = String::new();
 
         fs::File::open(config).and_then(|mut f| f.read_to_string(&mut input))?;
 
-        Self::from_str(&input)
+        Self::parse_str(&input)
     }
 
     /// Load configuration from a string in TOML format
@@ -99,10 +90,10 @@ impl Config {
     ///     Test3 = ["UOPS_EXECUTED:THREAD"]
     ///     "#;
     ///
-    ///     let config = Config::from_str(&config_str);
+    ///     let config = Config::parse_str(&config_str);
     ///     assert!(config.is_ok());
     ///
-    pub fn from_str(config: &str) -> Result<Self> {
+    pub fn parse_str(config: &str) -> Result<Self> {
         let deserialized: Self = toml::from_str(&config)?;
 
         Ok(deserialized)
