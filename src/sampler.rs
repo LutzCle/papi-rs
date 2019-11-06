@@ -230,7 +230,7 @@ mod tests {
 
         let sample = maybe_sample.unwrap();
         let mut buffer = String::new();
-        write!(&mut buffer, "{}", &sample);
+        write!(&mut buffer, "{}", &sample).unwrap();
 
         let _all: Vec<_> = sample.into_iter().collect();
     }
