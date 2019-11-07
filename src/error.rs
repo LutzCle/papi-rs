@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 German Research Center for Artificial Intelligence (DFKI)
+ * Copyright 2018-2019 German Research Center for Artificial Intelligence (DFKI)
  * Author: Clemens Lutz <clemens.lutz@dfki.de>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -46,6 +46,10 @@ error_chain! {
         InvalidEvent(e: &'static str) {
             description("invalid event name")
             display("invalid event name: '{}'", e)
+        }
+        OutOfHardwareCounters(e: &'static str) {
+            description("out of hardware counters")
+            display("out of hardware counters")
         }
     }
 

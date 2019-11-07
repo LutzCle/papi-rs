@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 German Research Center for Artificial Intelligence (DFKI)
+ * Copyright 2018-2019 German Research Center for Artificial Intelligence (DFKI)
  * Author: Clemens Lutz <clemens.lutz@dfki.de>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,31 +22,35 @@ use super::Papi;
 use error_chain::bail;
 use std;
 use std::fmt;
-use std::mem;
-use std::os::raw::{c_int, c_longlong};
+use std::marker::PhantomData;
+use std::os::raw::{c_char, c_int, c_longlong};
 
-/// Sampler object to sample hardware events
+/// A sampler that is ready to sample hardware events
 ///
 #[derive(Debug)]
 pub struct ReadySampler {
     event_codes: Vec<c_int>,
 }
 
+/// An already running sampler
+///
+#[derive(Debug)]
 pub struct RunningSampler {
+    event_codes: Vec<c_int>,
+    phantom: PhantomData<*mut u8>, // unimplement Send and Sync
+}
+
+/// SamplerBuilder to build a `ReadySampler` with a list of events to monitor
+///
+#[derive(Clone, Debug)]
+pub struct SamplerBuilder<'p> {
+    papi: &'p Papi,
     event_codes: Vec<c_int>,
 }
 
-/// SamplerBuilder to build a Sampler with a list of events to monitor
+/// A Sample object contains the values collected by a sampler
 ///
-#[derive(Debug)]
-pub struct SamplerBuilder<'p> {
-    papi: &'p Papi,
-    sampler: ReadySampler,
-}
-
-/// A Sample object contains the values collected by a Sampler
-///
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Sample {
     event_codes: Vec<c_int>,
     values: Vec<c_longlong>,
@@ -63,6 +67,7 @@ impl ReadySampler {
 
         Ok(RunningSampler {
             event_codes: self.event_codes,
+            phantom: PhantomData,
         })
     }
 }
@@ -70,7 +75,7 @@ impl ReadySampler {
 impl RunningSampler {
     /// Stop sampling hardware events
     ///
-    /// This method destroys the Sampler object
+    /// This method destroys the sampler object
     ///
     pub fn stop(self) -> Result<Sample> {
         let mut values = vec![0; self.event_codes.len()];
@@ -90,19 +95,21 @@ impl RunningSampler {
 }
 
 impl<'p> SamplerBuilder<'p> {
+    /// Creates a new SampleBuilder with a PAPI instance
+    ///
     pub fn new(papi: &'p Papi) -> Self {
         Self {
             papi,
-            sampler: ReadySampler {
-                event_codes: Vec::new(),
-            },
+            event_codes: Vec::new(),
         }
     }
 
-    /// Finalize the building of a new Sampler
+    /// Finalize the building of a new sampler
     ///
     pub fn build(self) -> ReadySampler {
-        self.sampler
+        ReadySampler {
+            event_codes: self.event_codes,
+        }
     }
 
     /// Add a hardware event to monitor
@@ -115,8 +122,16 @@ impl<'p> SamplerBuilder<'p> {
     ///     assert!(builder.add_event("CPU_CLK_UNHALTED").is_ok());
     ///
     pub fn add_event(mut self, name: &str) -> Result<Self> {
+        // Check if there are enough hardware counters available before adding
+        // another event counter
+        let num_counters = unsafe { ffi::PAPI_num_counters() };
+        if num_counters < 0 {
+            check(num_counters)?;
+        } else if self.event_codes.len() == num_counters as usize {
+            Err(ErrorKind::OutOfHardwareCounters(""))?;
+        }
+
         let c_name = std::ffi::CString::new(name)
-            // .or_else(|_| Err(Error::invalid_event("Invalid event name")))?;
             .or_else(|_| Err(ErrorKind::InvalidEvent("Invalid event name")))?;
 
         // Get event code
@@ -126,7 +141,7 @@ impl<'p> SamplerBuilder<'p> {
         // Check if event is available
         check(unsafe { ffi::PAPI_query_event(code) })?;
 
-        self.sampler.event_codes.push(code);
+        self.event_codes.push(code);
 
         Ok(self)
     }
@@ -173,25 +188,29 @@ impl<'p> SamplerBuilder<'p> {
     }
 }
 
+impl Sample {
+    #[allow(dead_code)]
+    pub(crate) fn event_code_to_name(event_code: c_int) -> Result<String> {
+        let mut c_event_name = [0_u8; ffi::PAPI_MAX_STR_LEN as usize];
+        check(unsafe {
+            ffi::PAPI_event_code_to_name(
+                event_code,
+                c_event_name.as_mut_ptr() as *mut u8 as *mut c_char,
+            )
+        })?;
+
+        unsafe { Ok(String::from_utf8_unchecked(c_event_name.to_vec())) }
+    }
+}
+
 impl fmt::Display for Sample {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // Get event_info_t and convert i8 array into UTF8 String
-        let event_symbols: Vec<_> = self
+        let event_symbols = self
             .event_codes
             .iter()
-            .map(|code| {
-                let mut info: ffi::PAPI_event_info_t;
-                let symbol: &[u8] = unsafe {
-                    info = mem::zeroed();
-                    check(ffi::PAPI_get_event_info(*code, &mut info)).unwrap_or_else(|e| {
-                        eprintln!("Unable to get PAPI event info, failed with {:?}", e);
-                    });
-                    &*(&info.symbol[..] as *const [i8] as *const [u8])
-                };
-
-                String::from_utf8_lossy(symbol)
-            })
-            .collect();
+            .map(|&code| Self::event_code_to_name(code).map_err(|_| fmt::Error::default()))
+            .collect::<std::result::Result<Vec<String>, fmt::Error>>()?;
 
         // Print the event symbols
         event_symbols
