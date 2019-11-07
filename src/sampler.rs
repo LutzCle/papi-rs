@@ -27,7 +27,7 @@ use std::os::raw::{c_char, c_int, c_longlong};
 
 /// A sampler that is ready to sample hardware events
 ///
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ReadySampler {
     event_codes: Vec<c_int>,
 }

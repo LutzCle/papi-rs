@@ -51,13 +51,13 @@ impl Papi {
     ///     assert!(Papi::init().is_ok());
     ///
     pub fn init() -> Result<Self> {
-        if unsafe { ffi::PAPI_library_init(ffi::_papi_ver_current) } != ffi::_papi_ver_current {
-            // return Err(Error::init_error("PAPI library version mismatch!"))
-            bail!("PAPI library version mismatch!");
+        if unsafe { ffi::PAPI_is_initialized() } != ffi::PAPI_LOW_LEVEL_INITED as i32 {
+            if unsafe { ffi::PAPI_library_init(ffi::PAPI_VER_CURRENT) != ffi::PAPI_VER_CURRENT } {
+                bail!("PAPI library version mismatch!");
+            }
         }
 
         if unsafe { ffi::PAPI_thread_init(Some(libc::pthread_self)) } != ffi::PAPI_OK as i32 {
-            // return Err(Error::init_error("Unable to initialize PAPI threads"))
             bail!("Unable to initialize PAPI threads");
         }
 

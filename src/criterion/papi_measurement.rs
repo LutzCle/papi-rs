@@ -17,35 +17,35 @@
 
 use super::sample_formatter::SampleFormatter;
 use crate::error::Result;
-use crate::sampler::{RunningSampler, SamplerBuilder};
+use crate::sampler::{ReadySampler, RunningSampler, SamplerBuilder};
 use crate::Papi;
 use criterion::measurement::{Measurement, ValueFormatter};
 
 /// An adapter for Criterion that measures hardware counters
 #[derive(Clone, Debug)]
-pub struct PapiMeasurement<'t> {
-    sampler_builder: SamplerBuilder<'t>,
+pub struct PapiMeasurement {
+    ready_sampler: ReadySampler,
     sample_formatter: SampleFormatter,
 }
 
-impl<'t> PapiMeasurement<'t> {
-    pub fn new(papi: &'t Papi, event_name: &str) -> Result<Self> {
-        let sampler_builder = SamplerBuilder::new(papi).add_event(event_name)?;
+impl PapiMeasurement {
+    pub fn new(papi: &Papi, event_name: &str) -> Result<Self> {
+        let ready_sampler = SamplerBuilder::new(papi).add_event(event_name)?.build();
         let sample_formatter = SampleFormatter::new(event_name);
 
         Ok(Self {
-            sampler_builder,
+            ready_sampler,
             sample_formatter,
         })
     }
 }
 
-impl<'t> Measurement for PapiMeasurement<'t> {
+impl Measurement for PapiMeasurement {
     type Intermediate = RunningSampler;
     type Value = i64;
 
     fn start(&self) -> Self::Intermediate {
-        let ready_sampler = self.sampler_builder.clone().build();
+        let ready_sampler = self.ready_sampler.clone();
         ready_sampler.start().expect("Failed to start PAPI sampler")
     }
 
