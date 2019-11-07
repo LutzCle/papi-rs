@@ -31,6 +31,20 @@ impl SampleFormatter {
     }
 }
 
+impl SampleFormatter {
+    /// Calculates throughput in bytes per event
+    fn bytes_per_event(&self, bytes: f64, values: &mut [f64]) -> &'static str {
+        values.iter_mut().for_each(|val| *val = bytes / *val);
+        "Bytes/event"
+    }
+
+    /// Calculates throughput in elements per event
+    fn elements_per_event(&self, elems: f64, values: &mut [f64]) -> &'static str {
+        values.iter_mut().for_each(|val| *val = elems / *val);
+        "elems/event"
+    }
+}
+
 impl ValueFormatter for SampleFormatter {
     fn scale_values(&self, _typical_value: f64, _values: &mut [f64]) -> &'static str {
         self.event_name
@@ -39,10 +53,13 @@ impl ValueFormatter for SampleFormatter {
     fn scale_throughputs(
         &self,
         _typical_value: f64,
-        _throughput: &Throughput,
-        _values: &mut [f64],
+        throughput: &Throughput,
+        values: &mut [f64],
     ) -> &'static str {
-        self.event_name
+        match *throughput {
+            Throughput::Bytes(bytes) => self.bytes_per_event(bytes as f64, values),
+            Throughput::Elements(elems) => self.elements_per_event(elems as f64, values),
+        }
     }
 
     fn scale_for_machines(&self, _values: &mut [f64]) -> &'static str {
