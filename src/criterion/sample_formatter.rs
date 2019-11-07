@@ -21,23 +21,19 @@ use criterion::Throughput;
 /// An adapter for Criterion that formats PAPI samples
 #[derive(Clone, Debug)]
 pub(crate) struct SampleFormatter {
-    event_name: String,
+    event_name: &'static str,
 }
 
 impl SampleFormatter {
     /// Creates a new SampleFormatter containing an event name
-    pub(crate) fn new(event_name: &str) -> Self {
-        let s = String::from(event_name);
-
-        Self { event_name: s }
+    pub(crate) fn new(event_name: &'static str) -> Self {
+        Self { event_name }
     }
 }
 
 impl ValueFormatter for SampleFormatter {
     fn scale_values(&self, _typical_value: f64, _values: &mut [f64]) -> &'static str {
-        // FIXME: Don't leak memory
-        let event_name = self.event_name.clone();
-        Box::leak(event_name.into_boxed_str())
+        self.event_name
     }
 
     fn scale_throughputs(
@@ -46,14 +42,10 @@ impl ValueFormatter for SampleFormatter {
         _throughput: &Throughput,
         _values: &mut [f64],
     ) -> &'static str {
-        // FIXME: Don't leak memory
-        let event_name = self.event_name.clone();
-        Box::leak(event_name.into_boxed_str())
+        self.event_name
     }
 
     fn scale_for_machines(&self, _values: &mut [f64]) -> &'static str {
-        // FIXME: Don't leak memory
-        let event_name = self.event_name.clone();
-        Box::leak(event_name.into_boxed_str())
+        self.event_name
     }
 }

@@ -29,7 +29,7 @@ pub struct PapiMeasurement {
 }
 
 impl PapiMeasurement {
-    pub fn new(papi: &Papi, event_name: &str) -> Result<Self> {
+    pub fn new(papi: &Papi, event_name: &'static str) -> Result<Self> {
         let ready_sampler = SamplerBuilder::new(papi).add_event(event_name)?.build();
         let sample_formatter = SampleFormatter::new(event_name);
 
