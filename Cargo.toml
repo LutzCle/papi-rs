@@ -12,3 +12,4 @@ papi-sys = { git = "https://github.com/LutzCle/papi-sys" }
 serde = "~1.0.76"
 serde_derive = "~1.0.79"
 toml = "~0.4.7"
+criterion = { version = "0.3", optional = true }

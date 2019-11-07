@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 German Research Center for Artificial Intelligence (DFKI)
+ * Copyright 2018-2019 German Research Center for Artificial Intelligence (DFKI)
  * Author: Clemens Lutz <clemens.lutz@dfki.de>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +17,9 @@
 
 pub mod error;
 pub mod sampler;
+
+#[cfg(feature = "criterion")]
+pub mod criterion;
 
 use crate::error::Result;
 
