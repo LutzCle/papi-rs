@@ -47,6 +47,10 @@ error_chain! {
             description("invalid event name")
             display("invalid event name: '{}'", e)
         }
+        InvalidArgument(e: String) {
+            description("invalid argument")
+            display("invalid argument: '{}'", e)
+        }
         OutOfHardwareCounters(e: &'static str) {
             description("out of hardware counters")
             display("out of hardware counters")

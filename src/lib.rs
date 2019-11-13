@@ -16,6 +16,7 @@
  */
 
 pub mod error;
+pub mod event_set;
 pub mod sampler;
 
 #[cfg(feature = "criterion")]
@@ -74,6 +75,19 @@ impl Papi {
 impl Config {
     /// Load configuration file in TOML format
     ///
+    ///     # use std::error::Error;
+    ///     # use std::result::Result;
+    ///     # use std::path::Path;
+    ///     use papi::{Config, Papi};
+    ///
+    ///     # fn main() -> Result<(), Box<dyn Error>> {
+    ///     let path = Path::new("resources/configuration.toml");
+    ///     let config = Config::parse_file(path)?;
+    ///     let papi = Papi::init_with_config(config)?;
+    ///     #
+    ///     # Ok(())
+    ///     # }
+    ///
     pub fn parse_file(config: &path::Path) -> Result<Self> {
         let mut input = String::new();
 
@@ -84,8 +98,11 @@ impl Config {
 
     /// Load configuration from a string in TOML format
     ///
-    ///     # extern crate papi;
-    ///     # use papi::Config;
+    ///     # use std::error::Error;
+    ///     # use std::result::Result;
+    ///     use papi::Config;
+    ///
+    ///     # fn main() -> Result<(), Box<dyn Error>> {
     ///     let config_str = r#"
     ///     [presets]
     ///     Test1 = ["UOPS_RETIRED:ALL", "UOPS_RETIRED:STALL_CYCLES"]
@@ -93,8 +110,10 @@ impl Config {
     ///     Test3 = ["UOPS_EXECUTED:THREAD"]
     ///     "#;
     ///
-    ///     let config = Config::parse_str(&config_str);
-    ///     assert!(config.is_ok());
+    ///     let config = Config::parse_str(&config_str)?;
+    ///     #
+    ///     # Ok(())
+    ///     # }
     ///
     pub fn parse_str(config: &str) -> Result<Self> {
         let deserialized: Self = toml::from_str(&config)?;
