@@ -17,23 +17,21 @@
 
 extern crate toml;
 
-use std::os::raw::c_int;
 use std::ffi::CStr;
+use std::os::raw::c_int;
 
 use super::ffi;
 
 // pub type Result<T> = result::Result<T, Error>;
 //
 pub fn check(code: c_int) -> Result<()> {
-
     match code as u32 {
         ffi::PAPI_OK => Ok(()),
         _ => Err(ErrorKind::PapiError(code).into()),
     }
-
 }
 
-error_chain!{
+error_chain! {
     errors {
         PapiError(e: c_int) {
             description("PAPI command failed")

@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-use super::error::{check,ErrorKind,Result};
+use super::error::{check, ErrorKind, Result};
 use super::ffi;
 use super::Papi;
 
 use std;
 use std::fmt;
 use std::mem;
-use std::os::raw::{c_int,c_longlong};
+use std::os::raw::{c_int, c_longlong};
 
 /// Sampler object to sample hardware events
 ///
@@ -43,7 +43,6 @@ pub struct SamplerBuilder<'p> {
     sampler: ReadySampler,
 }
 
-
 /// A Sample object contains the values collected by a Sampler
 ///
 #[derive(Debug)]
@@ -53,54 +52,56 @@ pub struct Sample {
 }
 
 impl ReadySampler {
-
     /// Start sampling hardware events
     ///
     pub fn start(mut self) -> Result<RunningSampler> {
-
         let len = self.event_codes.len() as c_int;
-        check(unsafe { ffi::PAPI_start_counters(
-                    self.event_codes.as_mut_slice().as_mut_ptr(),
-                    len)
+        check(unsafe {
+            ffi::PAPI_start_counters(self.event_codes.as_mut_slice().as_mut_ptr(), len)
         })?;
 
-        Ok(RunningSampler{ event_codes: self.event_codes })
+        Ok(RunningSampler {
+            event_codes: self.event_codes,
+        })
     }
 }
 
 impl RunningSampler {
-
     /// Stop sampling hardware events
     ///
     /// This method destroys the Sampler object
     ///
     pub fn stop(self) -> Result<Sample> {
-
         let mut values = vec![0; self.event_codes.len()];
 
-        check(unsafe { ffi::PAPI_stop_counters(
-                    values.as_mut_slice().as_mut_ptr(),
-                    self.event_codes.len() as c_int)
+        check(unsafe {
+            ffi::PAPI_stop_counters(
+                values.as_mut_slice().as_mut_ptr(),
+                self.event_codes.len() as c_int,
+            )
         })?;
 
-        Ok(Sample{ event_codes: self.event_codes, values })
+        Ok(Sample {
+            event_codes: self.event_codes,
+            values,
+        })
     }
 }
 
 impl<'p> SamplerBuilder<'p> {
-
     pub fn new(papi: &'p Papi) -> Self {
-
-        Self{ papi, sampler: ReadySampler{ event_codes: Vec::new() }}
-
+        Self {
+            papi,
+            sampler: ReadySampler {
+                event_codes: Vec::new(),
+            },
+        }
     }
 
     /// Finalize the building of a new Sampler
     ///
     pub fn build(self) -> ReadySampler {
-
         self.sampler
-
     }
 
     /// Add a hardware event to monitor
@@ -113,7 +114,6 @@ impl<'p> SamplerBuilder<'p> {
     ///     assert!(builder.add_event("CPU_CLK_UNHALTED").is_ok());
     ///
     pub fn add_event(mut self, name: &str) -> Result<Self> {
-
         let c_name = std::ffi::CString::new(name)
             // .or_else(|_| Err(Error::invalid_event("Invalid event name")))?;
             .or_else(|_| Err(ErrorKind::InvalidEvent("Invalid event name")))?;
@@ -122,13 +122,12 @@ impl<'p> SamplerBuilder<'p> {
         let mut code: c_int = 0;
         check(unsafe { ffi::PAPI_event_name_to_code(c_name.as_ptr(), &mut code) })?;
 
-		// Check if event is available
+        // Check if event is available
         check(unsafe { ffi::PAPI_query_event(code) })?;
 
         self.sampler.event_codes.push(code);
 
         Ok(self)
-
     }
 
     /// Use a preset specified in a configuration file
@@ -150,7 +149,6 @@ impl<'p> SamplerBuilder<'p> {
     ///     assert!(builder.use_preset("Test1").is_ok());
     ///
     pub fn use_preset(mut self, name: &str) -> Result<Self> {
-
         let maybe_config = match &self.papi.config {
             Some(o) => &o.presets,
             None => bail!("No configuration set"),
@@ -175,46 +173,39 @@ impl<'p> SamplerBuilder<'p> {
 }
 
 impl fmt::Display for Sample {
-
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-
         // Get event_info_t and convert i8 array into UTF8 String
-        let event_symbols: Vec<_> = self.event_codes.iter()
+        let event_symbols: Vec<_> = self
+            .event_codes
+            .iter()
             .map(|code| {
                 let mut info: ffi::PAPI_event_info_t;
-                let symbol: &[u8] =
-                    unsafe {
-                        info = mem::zeroed();
-                        check(ffi::PAPI_get_event_info(*code, &mut info))
-                            .unwrap_or_else(|e| {
-                                eprintln!("Unable to get PAPI event info, failed with {:?}", e);
-                            });
-                        mem::transmute(&info.symbol[..])
-                    };
+                let symbol: &[u8] = unsafe {
+                    info = mem::zeroed();
+                    check(ffi::PAPI_get_event_info(*code, &mut info)).unwrap_or_else(|e| {
+                        eprintln!("Unable to get PAPI event info, failed with {:?}", e);
+                    });
+                    mem::transmute(&info.symbol[..])
+                };
 
                 String::from_utf8_lossy(symbol)
-            }).collect();
+            })
+            .collect();
 
         // Print the event symbols
-        event_symbols.iter()
+        event_symbols
+            .iter()
             .zip(self.values.iter())
-            .try_for_each(|(symbol, sample)| {
-                write!(f, "{}: {} ", symbol, sample)
-            })
+            .try_for_each(|(symbol, sample)| write!(f, "{}: {} ", symbol, sample))
     }
 }
 
 impl IntoIterator for Sample {
-
     type Item = (i32, i64);
-    type IntoIter = ::std::iter::Zip<
-        ::std::vec::IntoIter<i32>,
-        ::std::vec::IntoIter<i64>>;
+    type IntoIter = ::std::iter::Zip<::std::vec::IntoIter<i32>, ::std::vec::IntoIter<i64>>;
 
     fn into_iter(self) -> Self::IntoIter {
-
-        self.event_codes.into_iter()
-            .zip(self.values.into_iter())
+        self.event_codes.into_iter().zip(self.values.into_iter())
     }
 }
 
@@ -226,10 +217,8 @@ mod tests {
 
     #[test]
     fn complete_pipeline() {
-
         let papi = Papi::init().unwrap();
-        let event_added = SamplerBuilder::new(&papi)
-            .add_event("CPU_CLK_UNHALTED");
+        let event_added = SamplerBuilder::new(&papi).add_event("CPU_CLK_UNHALTED");
         assert!(event_added.is_ok());
 
         let builder = event_added.unwrap();
@@ -244,6 +233,5 @@ mod tests {
         write!(&mut buffer, "{}", &sample);
 
         let _all: Vec<_> = sample.into_iter().collect();
-
     }
 }

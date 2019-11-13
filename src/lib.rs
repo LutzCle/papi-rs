@@ -33,10 +33,10 @@ use error::Result;
 
 use papi_sys as ffi;
 
-use std::fs;
-use std::path;
-use std::io::Read;
 use std::collections::BTreeMap;
+use std::fs;
+use std::io::Read;
+use std::path;
 
 #[derive(Debug)]
 pub struct Papi {
@@ -50,7 +50,6 @@ pub struct Config {
 
 /// PAPI library wrapper
 impl Papi {
-
     /// Initialize PAPI library with parallelism support
     ///
     ///     # extern crate papi;
@@ -58,27 +57,20 @@ impl Papi {
     ///     assert!(Papi::init().is_ok());
     ///
     pub fn init() -> Result<Self> {
-
-        if unsafe {
-            ffi::PAPI_library_init(ffi::_papi_ver_current)
-        } != ffi::_papi_ver_current
-        {
+        if unsafe { ffi::PAPI_library_init(ffi::_papi_ver_current) } != ffi::_papi_ver_current {
             // return Err(Error::init_error("PAPI library version mismatch!"))
             bail!("PAPI library version mismatch!");
         }
 
-        if unsafe {
-            ffi::PAPI_thread_init(Some(libc::pthread_self))
-        } != ffi::PAPI_OK as i32 {
+        if unsafe { ffi::PAPI_thread_init(Some(libc::pthread_self)) } != ffi::PAPI_OK as i32 {
             // return Err(Error::init_error("Unable to initialize PAPI threads"))
             bail!("Unable to initialize PAPI threads");
         }
 
-        Ok(Papi{ config: None })
+        Ok(Papi { config: None })
     }
 
     pub fn init_with_config(config: Config) -> Result<Self> {
-
         let mut papi = Self::init()?;
         papi.config = Some(config);
         Ok(papi)
@@ -86,19 +78,14 @@ impl Papi {
 }
 
 impl Config {
-
     /// Load configuration file in TOML format
     ///
     pub fn from_path(config: &path::Path) -> Result<Self> {
-
         let mut input = String::new();
 
-        fs::File::open(config).and_then(|mut f| {
-            f.read_to_string(&mut input)
-        })?;
+        fs::File::open(config).and_then(|mut f| f.read_to_string(&mut input))?;
 
         Self::from_str(&input)
-
     }
 
     /// Load configuration from a string in TOML format
@@ -116,10 +103,8 @@ impl Config {
     ///     assert!(config.is_ok());
     ///
     pub fn from_str(config: &str) -> Result<Self> {
-
         let deserialized: Self = toml::from_str(&config)?;
 
         Ok(deserialized)
-
     }
 }
