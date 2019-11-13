@@ -17,40 +17,51 @@
 
 use super::sample_formatter::SampleFormatter;
 use crate::error::Result;
-use crate::sampler::{ReadySampler, RunningSampler, SamplerBuilder};
+use crate::event_set::{EventSetBuilder, ReadyEventSet, RunningEventSet, Sample};
 use crate::Papi;
 use criterion::measurement::{Measurement, ValueFormatter};
 
 /// An adapter for Criterion that measures hardware counters
 #[derive(Clone, Debug)]
 pub struct PapiMeasurement {
-    ready_sampler: ReadySampler,
+    ready_event_set: CloneableEventSet,
+    sample: Sample,
     sample_formatter: SampleFormatter,
 }
 
 impl PapiMeasurement {
     pub fn new(papi: &Papi, event_name: &'static str) -> Result<Self> {
-        let ready_sampler = SamplerBuilder::new(papi).add_event(event_name)?.build();
+        let ready_event_set = EventSetBuilder::new(papi)?
+            .add_event_by_name(event_name)?
+            .build()?;
+        let mut sample = Sample::default();
+        ready_event_set.init_sample(&mut sample)?;
         let sample_formatter = SampleFormatter::new(event_name);
 
         Ok(Self {
-            ready_sampler,
+            ready_event_set: CloneableEventSet(ready_event_set),
+            sample,
             sample_formatter,
         })
     }
 }
 
 impl Measurement for PapiMeasurement {
-    type Intermediate = RunningSampler;
+    type Intermediate = RunningEventSet;
     type Value = i64;
 
     fn start(&self) -> Self::Intermediate {
-        let ready_sampler = self.ready_sampler.clone();
-        ready_sampler.start().expect("Failed to start PAPI sampler")
+        let ready_event_set = self.ready_event_set.clone().0;
+        ready_event_set
+            .start()
+            .expect("Failed to start PAPI event set")
     }
 
-    fn end(&self, running_sampler: Self::Intermediate) -> Self::Value {
-        let sample = running_sampler.stop().expect("Failed to stop PAPI sampler");
+    fn end(&self, running_event_set: Self::Intermediate) -> Self::Value {
+        let mut sample = self.sample.clone();
+        running_event_set
+            .stop(&mut sample)
+            .expect("Failed to stop PAPI event set");
         sample
             .into_iter()
             .nth(0)
@@ -72,5 +83,14 @@ impl Measurement for PapiMeasurement {
 
     fn formatter(&self) -> &dyn ValueFormatter {
         &self.sample_formatter
+    }
+}
+
+#[derive(Debug)]
+struct CloneableEventSet(ReadyEventSet);
+
+impl Clone for CloneableEventSet {
+    fn clone(&self) -> Self {
+        Self(self.0.try_clone().expect("Failed to clone PAPI event set"))
     }
 }
