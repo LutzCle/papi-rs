@@ -266,13 +266,9 @@ impl ReadyEventSet {
             ))?;
         }
 
-        let mut hasher = DefaultHasher::new();
-        new_event_set.hash(&mut hasher);
-        let new_event_set_hash = hasher.finish();
-
         Ok(ReadyEventSet {
             event_set: Some(new_event_set),
-            event_set_hash: new_event_set_hash,
+            event_set_hash: self.event_set_hash,
             num_events: self.num_events,
             phantom: PhantomData,
         })
@@ -493,12 +489,23 @@ impl<'p> EventSetBuilder<'p> {
         let num_events = NonZeroU16::new(self.num_events).ok_or_else(|| {
             ErrorKind::InvalidArgument("Cannot create EventSet without events!".into())
         })?;
+        let mut num_events_ffi = self.num_events.into();
+        let mut event_codes = vec![0; self.num_events.into()];
 
         let event_set = self
             .event_set
             .expect("EventSet uninitialized; looks like a bug");
+
+        unsafe {
+            check(ffi::PAPI_list_events(
+                event_set,
+                event_codes.as_mut_ptr(),
+                &mut num_events_ffi,
+            ))?;
+        }
+
         let mut hasher = DefaultHasher::new();
-        event_set.hash(&mut hasher);
+        event_codes.iter().for_each(|code| code.hash(&mut hasher));
         let event_set_hash = hasher.finish();
 
         Ok(ReadyEventSet {
