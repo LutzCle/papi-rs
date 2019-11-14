@@ -8,8 +8,6 @@
 
 pub mod error;
 pub mod event_set;
-#[deprecated(note = "Please use `event_set` instead of `sampler`.")]
-pub mod sampler;
 
 #[cfg(feature = "criterion")]
 pub mod criterion;
