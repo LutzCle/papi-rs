@@ -19,7 +19,7 @@ maintenance = { status = "actively-developed" }
 [dependencies]
 error-chain = "0.12.1"
 libc = "~0.2"
-papi-sys = { git = "https://github.com/LutzCle/papi-sys" }
+papi-sys = "~0.1"
 serde = "~1.0.76"
 serde_derive = "~1.0.79"
 toml = "~0.4.7"
