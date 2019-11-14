@@ -2,8 +2,19 @@
 name = "papi"
 version = "0.1.0"
 authors = ["Clemens Lutz <lutzcle@cml.li>"]
+
+description = "A PAPI (Performance API) wrapper for Rust"
+repository = "https://github.com/LutzCle/papi-rs"
+readme = "README.md"
 license = "MIT OR Apache-2.0"
+keywords = ["hardware-counters", "performance-counters"]
+categories = ["hardware-support", "development-tools::profiling", "api-bindings"]
+
 edition = "2018"
+
+[badges]
+travis-ci = { repository = "LutzCle/papi-rs" }
+maintenance = { status = "actively-developed" }
 
 [dependencies]
 error-chain = "0.12.1"
