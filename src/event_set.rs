@@ -645,8 +645,13 @@ impl Sample {
                 event_code,
                 c_event_name.as_mut_ptr() as *mut u8 as *mut c_char,
             ))?;
-            Ok(String::from_utf8_unchecked(c_event_name.to_vec()))
         }
+        let nul_index = c_event_name
+            .iter()
+            .position(|&byte| byte == 0)
+            .expect("Couldn't find '\0' byte in PAPI event codename");
+
+        Ok(unsafe { String::from_utf8_unchecked(c_event_name[0..nul_index].to_vec()) })
     }
 }
 
