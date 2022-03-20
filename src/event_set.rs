@@ -539,7 +539,7 @@ impl<'p> EventSetBuilder<'p> {
         if num_events < 0 {
             check(num_events)?;
         }
-        let num_counters = unsafe { ffi::PAPI_num_counters() };
+        let num_counters = unsafe { ffi::PAPI_num_cmp_hwctrs(0) };
         if num_counters < 0 {
             check(num_counters)?;
         } else if num_events == num_counters {
